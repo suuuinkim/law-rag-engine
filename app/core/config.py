@@ -12,6 +12,10 @@ class Settings:
             "GEMINI_EMBEDDING_MODEL",
             "gemini-embedding-001"
         )
+        self.GEMINI_GENERATION_MODEL = os.getenv(
+            "GEMINI_GENERATION_MODEL",
+            "gemini-2.0-flash"
+        )
 
         self.QDRANT_URL = os.getenv(
             "QDRANT_URL",

@@ -140,3 +140,27 @@ def recreate_collection():
             distance=Distance.COSINE
         )
     )
+
+def deduplicate_results(results: List[Dict]) -> List[Dict]:
+    """
+    검색 결과에서 같은 문서명, 페이지, 청크 ID 기준으로 중복을 제거
+    같은 PDF를 여러 번 인덱싱했을 때 중복 citation이 나오는 것을 방지
+    """
+
+    seen = set()
+    unique_results = []
+
+    for result in results:
+        key = (
+            result.get("original_filename"),
+            result.get("page_number"),
+            result.get("chunk_id"),
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique_results.append(result)
+
+    return unique_results

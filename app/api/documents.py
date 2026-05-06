@@ -9,8 +9,13 @@ from app.services.chunker import create_chunks_from_pages
 from app.services.embedding import create_embeddings
 from app.services.pdf_loader import extract_pages_from_pdf
 from app.services.vector_store import (
-    upsert_chunks, get_qdrant_client, search_similar_chunks,  recreate_collection,
+    upsert_chunks
+    , get_qdrant_client
+    , search_similar_chunks
+    , recreate_collection
+    , deduplicate_results
 )
+from app.services.llm import generate_answer
 
 router = APIRouter(
     prefix="/documents",
@@ -248,6 +253,8 @@ def search_documents(request: SearchRequest):
             limit=request.limit
         )
 
+        results = deduplicate_results(results)
+
         return {
             "question": request.question,
             "limit": request.limit,
@@ -279,4 +286,51 @@ def reset_vector_store():
         raise HTTPException(
             status_code=500,
             detail=f"Qdrant 컬렉션 초기화 중 오류가 발생했습니다: {str(e)}"
+        )
+
+
+@router.post("/ask")
+def ask_document(request: SearchRequest):
+    """
+    사용자 질문에 대해 관련 청크를 검색하고 Gemini로 답변을 생성합니다.
+    """
+    try:
+        # 저장 때와 같은 경로로 질문 임베딩을 생성합니다.
+        question_embedding = create_embeddings([request.question])[0]
+
+        retrieved_chunks = search_similar_chunks(
+            question_embedding=question_embedding,
+            limit=request.limit
+        )
+
+        retrieved_chunks = deduplicate_results(retrieved_chunks)
+
+        answer = generate_answer(
+            question=request.question,
+            contexts=retrieved_chunks
+        )
+
+        citations = []
+
+        for chunk in retrieved_chunks:
+            citations.append({
+                "score": chunk.get("score"),
+                "document_id": chunk.get("document_id"),
+                "original_filename": chunk.get("original_filename"),
+                "chunk_id": chunk.get("chunk_id"),
+                "page_number": chunk.get("page_number"),
+                "text_preview": chunk.get("text", "")[:300]
+            })
+
+        return {
+            "question": request.question,
+            "answer": answer,
+            "citation_count": len(citations),
+            "citations": citations
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"문서 답변 생성 중 오류가 발생했습니다: {str(e)}"
         )
