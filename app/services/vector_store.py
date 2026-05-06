@@ -6,7 +6,6 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 
 from app.core.config import settings
 
-
 VECTOR_SIZE = 3072
 
 
@@ -81,3 +80,63 @@ def upsert_chunks(
     )
 
     return len(points)
+
+def search_similar_chunks(
+        question_embedding: List[float],
+        limit: int = 5
+) -> List[Dict]:
+    """
+    질문 임베딩과 유사한 청크를 Qdrant에서 검색합니다.
+    """
+    client = get_qdrant_client()
+
+    query_result = client.query_points(
+        collection_name=settings.QDRANT_COLLECTION_NAME,
+        query=question_embedding,
+        limit=limit
+    )
+
+    results = []
+
+    for point in query_result.points:
+        payload = point.payload or {}
+
+        results.append({
+            "score": point.score,
+            "document_id": payload.get("document_id"),
+            "original_filename": payload.get("original_filename"),
+            "chunk_id": payload.get("chunk_id"),
+            "chunk_index": payload.get("chunk_index"),
+            "page_number": payload.get("page_number"),
+            "page_chunk_index": payload.get("page_chunk_index"),
+            "text": payload.get("text"),
+            "text_length": payload.get("text_length")
+        })
+
+    return results
+
+def recreate_collection():
+    """
+    기존 Qdrant 컬렉션을 삭제하고 단일 벡터 컬렉션으로 다시 생성합니다.
+    """
+    client = get_qdrant_client()
+    collection_name = settings.QDRANT_COLLECTION_NAME
+
+    collections = client.get_collections().collections
+    collection_names = [
+        collection.name
+        for collection in collections
+    ]
+
+    if collection_name in collection_names:
+        client.delete_collection(
+            collection_name=collection_name
+        )
+
+    client.create_collection(
+        collection_name=collection_name,
+        vectors_config=VectorParams(
+            size=VECTOR_SIZE,
+            distance=Distance.COSINE
+        )
+    )

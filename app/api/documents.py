@@ -3,11 +3,14 @@ from uuid import uuid4
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 
+from app.core.config import settings
+from app.schemas.search_schema import SearchRequest
 from app.services.chunker import create_chunks_from_pages
 from app.services.embedding import create_embeddings
 from app.services.pdf_loader import extract_pages_from_pdf
-from app.services.vector_store import upsert_chunks, get_qdrant_client
-from app.core.config import settings
+from app.services.vector_store import (
+    upsert_chunks, get_qdrant_client, search_similar_chunks,  recreate_collection,
+)
 
 router = APIRouter(
     prefix="/documents",
@@ -229,4 +232,51 @@ def get_vector_store_count():
         raise HTTPException(
             status_code=500,
             detail=f"Qdrant count 조회 중 오류가 발생했습니다: {str(e)}"
+        )
+
+@router.post("/search")
+def search_documents(request: SearchRequest):
+    """
+    사용자 질문을 임베딩한 뒤 Qdrant에서 유사한 청크를 검색
+    """
+
+    try:
+        question_embedding = create_embeddings([request.question])[0]
+
+        results = search_similar_chunks(
+            question_embedding = question_embedding,
+            limit=request.limit
+        )
+
+        return {
+            "question": request.question,
+            "limit": request.limit,
+            "result_count": len(results),
+            "results": results
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"문서 검색 중 오류가 발생했습니다: {str(e)}"
+        )
+
+@router.delete("/vector-store/reset")
+def reset_vector_store():
+    """
+    Qdrant 컬렉션을 삭제하고 다시 생성합니다.
+    개발 중 벡터 설정이 꼬였을 때 사용합니다.
+    """
+    try:
+        recreate_collection()
+
+        return {
+            "collection_name": settings.QDRANT_COLLECTION_NAME,
+            "status": "reset"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Qdrant 컬렉션 초기화 중 오류가 발생했습니다: {str(e)}"
         )
