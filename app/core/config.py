@@ -13,5 +13,13 @@ class Settings:
             "gemini-embedding-001"
         )
 
+        self.QDRANT_URL = os.getenv(
+            "QDRANT_URL",
+            "http://localhost:6333"
+        )
+        self.QDRANT_COLLECTION_NAME = os.getenv(
+            "QDRANT_COLLECTION_NAME",
+            "law_documents"
+        )
 
 settings = Settings()

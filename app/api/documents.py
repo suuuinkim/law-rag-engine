@@ -1,11 +1,13 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 
 from app.services.chunker import create_chunks_from_pages
 from app.services.embedding import create_embeddings
 from app.services.pdf_loader import extract_pages_from_pdf
+from app.services.vector_store import upsert_chunks, get_qdrant_client
+from app.core.config import settings
 
 router = APIRouter(
     prefix="/documents",
@@ -137,3 +139,94 @@ async def upload_document_embedding_test(file: UploadFile = File(...)):
         "embedding_model": "gemini-embedding-001",
         "results": preview_results
     }
+
+@router.post("/upload/index")
+async def upload_document_and_index(
+        file: UploadFile = File(...),
+        max_chunks: int = Query(20, ge=1, le=200)
+):
+    """
+    PDF 파일을 업로드하고 청크를 임베딩한 뒤 Qdrant에 저장합니다.
+    개발 중에는 max_chunks로 인덱싱 개수를 제한합니다.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="PDF 파일만 업로드할 수 있습니다."
+        )
+
+    document_id = str(uuid4())
+    stored_filename = f"{document_id}_{file.filename}"
+    file_path = UPLOAD_DIR / stored_filename
+
+    content = await file.read()
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    try:
+        pages = extract_pages_from_pdf(str(file_path))
+        chunks = create_chunks_from_pages(
+            pages=pages,
+            chunk_size=800,
+            overlap=120
+        )
+
+        total_chunk_count = len(chunks)
+
+        # 개발 중 quota 방지를 위해 일부 청크만 인덱싱
+        chunks_to_index = chunks[:max_chunks]
+
+        texts = [
+            chunk["text"]
+            for chunk in chunks_to_index
+        ]
+
+        embeddings = create_embeddings(texts)
+
+        indexed_count = upsert_chunks(
+            document_id=document_id,
+            original_filename=file.filename,
+            chunks=chunks_to_index,
+            embeddings=embeddings
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"문서 인덱싱 중 오류가 발생했습니다: {str(e)}"
+        )
+
+    return {
+        "document_id": document_id,
+        "original_filename": file.filename,
+        "stored_filename": stored_filename,
+        "page_count": len(pages),
+        "total_chunk_count": total_chunk_count,
+        "requested_max_chunks": max_chunks,
+        "indexed_count": indexed_count,
+        "collection_name": "law_documents"
+    }
+
+@router.get("/vector-store/count")
+def get_vector_store_count():
+    """
+    Qdrant에 저장된 벡터 개수를 확인합니다.
+    """
+    try:
+        client = get_qdrant_client()
+        result = client.count(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            exact=True
+        )
+
+        return {
+            "collection_name": settings.QDRANT_COLLECTION_NAME,
+            "points_count": result.count
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Qdrant count 조회 중 오류가 발생했습니다: {str(e)}"
+        )
