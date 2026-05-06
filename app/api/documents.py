@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
+from app.services.chunker import create_chunks_from_pages
 from app.services.pdf_loader import extract_pages_from_pdf
 
 router = APIRouter(
@@ -34,6 +35,11 @@ async def upload_document(file: UploadFile = File(...)):
 
     try:
         pages = extract_pages_from_pdf(str(file_path))
+        chunks = create_chunks_from_pages(
+            pages=pages,
+            chunk_size=800,
+            overlap=120
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -48,9 +54,22 @@ async def upload_document(file: UploadFile = File(...)):
             "text_preview": page["text"][:500]
         })
 
+    preview_chunks = []
+
+    for chunk in chunks[:5]:
+        preview_chunks.append({
+            "chunk_id": chunk["chunk_id"],
+            "chunk_index": chunk["chunk_index"],
+            "page_number": chunk["page_number"],
+            "text_length": chunk["text_length"],
+            "text_preview": chunk["text"][:300]
+        })
+
     return {
         "original_filename" : file.filename,
         "stored_filename" : stored_filename,
         "page_count" : len(pages),
-        "preview_pages" : preview_pages
+        "chunk_count" : len(chunks),
+        "preview_pages" : preview_pages,
+        "preview_chunks" : preview_chunks
     }
