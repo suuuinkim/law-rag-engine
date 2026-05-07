@@ -21,6 +21,9 @@ class Settings:
             "QDRANT_URL",
             "http://localhost:6333"
         )
+
+        self.QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+        
         self.QDRANT_COLLECTION_NAME = os.getenv(
             "QDRANT_COLLECTION_NAME",
             "law_documents"

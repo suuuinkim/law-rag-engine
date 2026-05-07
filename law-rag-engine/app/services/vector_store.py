@@ -10,7 +10,15 @@ VECTOR_SIZE = 3072
 
 
 def get_qdrant_client() -> QdrantClient:
-    return QdrantClient(url=settings.QDRANT_URL)
+    if settings.QDRANT_API_KEY:
+        return QdrantClient(
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY
+        )
+
+    return QdrantClient(
+        url=settings.QDRANT_URL
+    )
 
 
 def ensure_collection_exists():
