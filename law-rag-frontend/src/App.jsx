@@ -600,8 +600,7 @@ function Message({ message }) {
             >
               <div className="citation-top">
                 <div className="citation-page">
-                  p.{citation.page_number ?? "?"} ·{" "}
-                  {citation.chunk_id ?? "청크"}
+                  p.{citation.page_number ?? "?"} ·문서 근거
                 </div>
                 <div className="citation-score">
                   {citation.score != null
