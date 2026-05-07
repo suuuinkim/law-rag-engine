@@ -19,3 +19,7 @@ law-rag-frontend/.env.local
 # OS
 .DS_Store
 Thumbs.db
+
+# AI / IDE local settings
+.claude/
+**/.claude/
