@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Get-ChildItem -Path \"C:\\\\gits\\\\law-rag-project\\\\law-rag-engine\" -Recurse -Depth 2)",
-      "Bash(Select-Object -First 50)",
-      "WebFetch(domain:cookie-monster-color.figma.site)"
-    ]
-  }
-}
