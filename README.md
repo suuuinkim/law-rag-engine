@@ -1,6 +1,8 @@
 # Law RAG Project
 
 법령 PDF를 업로드하면 내용을 벡터로 인덱싱하고, 자연어 질문에 문서 근거 기반으로 답변하는 RAG 시스템입니다.
+<img width="1861" height="1198" alt="image" src="https://github.com/user-attachments/assets/0caea548-d159-4c84-867a-38be19f7c2a3" />
+
 
 ## 프로젝트 구조
 
