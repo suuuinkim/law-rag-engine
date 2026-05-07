@@ -143,7 +143,7 @@ function App() {
       setTotalChunks(data.total_chunk_count ?? "—");
       setIndexedChunks(data.indexed_count ?? "—");
       setDocName(data.original_filename ?? selectedFile.name);
-      setDocState("인덱싱 완료");
+      setDocState("검색 준비 완료");
 
       setProgressValue(100);
       setProgressText("완료");
@@ -184,7 +184,7 @@ function App() {
 
       setVectorCount("0");
       setIndexedChunks("—");
-      setDocState("초기화됨");
+      setDocState("검색 데이터 없음");
       showToast("벡터 저장소를 초기화했습니다.", "info");
     } catch (error) {
       showToast(`초기화 실패: ${error.message}`, "error");
@@ -288,7 +288,7 @@ function App() {
           </div>
           <div className="brand-copy">
             <strong>LawLens</strong>
-            <span>Cookie Monster blue 기반 법령 문서 검색 도구</span>
+            <span>법령 문서 검색 도구</span>
           </div>
         </div>
 
@@ -309,11 +309,10 @@ function App() {
             <h1>
               법령 PDF를
               <br />
-              인덱싱하세요.
+              업로드 해 주세요.
             </h1>
             <p>
-              문서를 업로드하면 청크로 나뉘고, Gemini 임베딩을 거쳐 Qdrant에
-              저장됩니다.
+              업로드한 문서를 AI가 검색할 수 있는 형태로 준비합니다.
             </p>
           </div>
 
@@ -364,7 +363,7 @@ function App() {
 
               <div className="field">
                 <div className="field-row">
-                  <label htmlFor="chunkRange">인덱싱 청크 수</label>
+                  <label htmlFor="chunkRange">검색 준비 범위</label>
                   <span className="pill">{chunkCount}</span>
                 </div>
                 <input
@@ -395,7 +394,7 @@ function App() {
                 disabled={!selectedFile || isIndexing}
                 onClick={handleIndex}
               >
-                벡터 인덱싱 시작
+                검색 준비 시작
               </button>
             </section>
 
@@ -409,19 +408,19 @@ function App() {
 
               <div className="stats">
                 <div className="stat">
-                  <span>페이지</span>
+                  <span>페이지 수</span>
                   <strong>{pageCount}</strong>
                 </div>
                 <div className="stat">
-                  <span>전체 청크</span>
+                  <span>문서 조각</span>
                   <strong>{totalChunks}</strong>
                 </div>
                 <div className="stat">
-                  <span>인덱싱</span>
+                  <span>저장된 조각</span>
                   <strong>{indexedChunks}</strong>
                 </div>
                 <div className="stat">
-                  <span>벡터 수</span>
+                  <span>검색 데이터</span>
                   <strong>{vectorCount}</strong>
                 </div>
               </div>
@@ -431,7 +430,7 @@ function App() {
                 style={{ marginTop: 14 }}
                 onClick={handleReset}
               >
-                벡터 저장소 초기화
+                검색 데이터 초기화
               </button>
             </section>
 
@@ -442,13 +441,13 @@ function App() {
               </div>
 
               <div className="steps">
-                <Step number="1" text="PDF에서 페이지별 텍스트를 추출합니다." />
-                <Step number="2" text="문서를 청크로 나눠 임베딩합니다." />
+                <Step number="1" text="PDF에서 글자를 읽습니다." />
+                <Step number="2" text="내용을 검색하기 쉽게 나눕니다." />
                 <Step
                   number="3"
-                  text="Qdrant에서 질문과 유사한 근거를 찾습니다."
+                  text="질문과 관련 있는 부분을 찾습니다."
                 />
-                <Step number="4" text="Gemini가 근거 기반 답변을 생성합니다." />
+                <Step number="4" text="찾은 근거를 바탕으로 답변합니다." />
               </div>
             </section>
           </div>
@@ -459,13 +458,12 @@ function App() {
             <div className="answer-title">
               <div className="eyebrow">Answer & Citations</div>
               <h2>
-                오른쪽은 답변과
+                궁금한 내용을
                 <br />
-                근거를 확인하는 공간입니다.
+                물어보세요.
               </h2>
               <p>
-                답변은 검색된 문서 청크를 기반으로 생성되며, 아래에 페이지
-                번호와 근거 카드가 함께 표시됩니다.
+                업로드한 법령 문서에서 관련 근거를 찾아 답변과 함께 보여드립니다.
               </p>
             </div>
             <div className="flow-badge">PDF → Vector → Search → Answer</div>
@@ -481,13 +479,12 @@ function App() {
                     </svg>
                   </div>
                   <h3>
-                    근거를 먼저 찾고,
+                    문서 안에서 찾고,
                     <br />
-                    답변은 그 다음에.
+                    근거와 함께 답변해요.
                   </h3>
                   <p>
-                    인덱싱이 끝나면 법령의 정의, 적용 범위, 휴가, 해고, 근로계약
-                    등 문서 안의 내용을 자연어로 질문할 수 있습니다.
+                    법령의 정의, 적용 범위, 휴가, 해고, 근로계약 등 궁금한 내용을 자연어로 물어보세요.
                   </p>
                   <div className="chips">
                     <button
@@ -560,8 +557,8 @@ function App() {
               </button>
             </div>
             <div className="hint">
-              Enter 전송 · Shift+Enter 줄바꿈 · 답변은 업로드된 문서 근거를
-              기반으로 생성됩니다.
+              답변은 업로드된 문서 근거를
+              바탕으로 생성됩니다.
             </div>
           </div>
         </section>
