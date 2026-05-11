@@ -2,7 +2,7 @@ from typing import List, Dict
 from uuid import uuid4
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
 
 from app.core.config import settings
 
@@ -148,6 +148,88 @@ def recreate_collection():
             distance=Distance.COSINE
         )
     )
+
+def list_documents() -> List[Dict]:
+    """
+    Qdrant에 인덱싱된 문서 목록을 반환합니다.
+    document_id 기준으로 중복을 제거하고 청크 수와 페이지 수를 집계합니다.
+    """
+    client = get_qdrant_client()
+    documents = {}
+    offset = None
+
+    while True:
+        result, next_offset = client.scroll(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            with_payload=True,
+            with_vectors=False,
+            limit=100,
+            offset=offset
+        )
+
+        for point in result:
+            payload = point.payload or {}
+            doc_id = payload.get("document_id")
+
+            if not doc_id:
+                continue
+
+            if doc_id not in documents:
+                documents[doc_id] = {
+                    "document_id": doc_id,
+                    "original_filename": payload.get("original_filename"),
+                    "chunk_count": 0,
+                    "page_numbers": set()
+                }
+
+            documents[doc_id]["chunk_count"] += 1
+            page = payload.get("page_number")
+            if page is not None:
+                documents[doc_id]["page_numbers"].add(page)
+
+        if next_offset is None:
+            break
+        offset = next_offset
+
+    result_list = []
+    for doc in documents.values():
+        result_list.append({
+            "document_id": doc["document_id"],
+            "original_filename": doc["original_filename"],
+            "chunk_count": doc["chunk_count"],
+            "page_count": len(doc["page_numbers"])
+        })
+
+    return result_list
+
+
+def delete_document(document_id: str) -> int:
+    """
+    특정 document_id에 해당하는 벡터를 Qdrant에서 모두 삭제합니다.
+    삭제된 포인트 수를 반환합니다.
+    """
+    client = get_qdrant_client()
+
+    count_before = client.count(
+        collection_name=settings.QDRANT_COLLECTION_NAME,
+        count_filter=Filter(
+            must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+        ),
+        exact=True
+    ).count
+
+    if count_before == 0:
+        return 0
+
+    client.delete(
+        collection_name=settings.QDRANT_COLLECTION_NAME,
+        points_selector=Filter(
+            must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+        )
+    )
+
+    return count_before
+
 
 def deduplicate_results(results: List[Dict]) -> List[Dict]:
     """

@@ -14,6 +14,8 @@ from app.services.vector_store import (
     , search_similar_chunks
     , recreate_collection
     , deduplicate_results
+    , list_documents
+    , delete_document
 )
 from app.services.llm import generate_answer
 
@@ -286,6 +288,55 @@ def reset_vector_store():
         raise HTTPException(
             status_code=500,
             detail=f"Qdrant 컬렉션 초기화 중 오류가 발생했습니다: {str(e)}"
+        )
+
+
+@router.get("")
+def get_documents():
+    """
+    인덱싱된 문서 목록을 반환합니다.
+    """
+    try:
+        documents = list_documents()
+
+        return {
+            "document_count": len(documents),
+            "documents": documents
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"문서 목록 조회 중 오류가 발생했습니다: {str(e)}"
+        )
+
+
+@router.delete("/{document_id}")
+def delete_document_by_id(document_id: str):
+    """
+    특정 문서의 벡터를 Qdrant에서 삭제합니다.
+    """
+    try:
+        deleted_count = delete_document(document_id)
+
+        if deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"document_id '{document_id}'에 해당하는 문서를 찾을 수 없습니다."
+            )
+
+        return {
+            "document_id": document_id,
+            "deleted_chunk_count": deleted_count,
+            "status": "deleted"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"문서 삭제 중 오류가 발생했습니다: {str(e)}"
         )
 
 
